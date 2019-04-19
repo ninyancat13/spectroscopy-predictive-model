@@ -1,0 +1,395 @@
+---
+title: "Spectroscopy"
+author: "Nina Kumagai"
+date: "6 October 2018"
+output: rmarkdown::github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(caret)
+#Caret is package that brings the tecator in.
+```
+
+
+```{r}
+data(tecator)
+```
+
+```{r}
+summary(absorp)
+```
+
+```{r}
+plot(absorp)
+```
+
+```{r}
+summary(endpoints)
+```
+
+```{r}
+plot(absorp[1,], main = "Absorption Spectroscopy of A Meat Sample")
+```
+
+```{r}
+plot(absorp[2,], main = "Absorption Spectroscopy of A Meat Sample")
+```
+
+```{r}
+plot(absorp[3,], main = "Absorption Spectroscopy of A Meat Sample")
+```
+
+
+
+```{r}
+#With normal construction (combining dataset together)
+absorp_endpt <- data.frame(cbind(endpoints[,2], absorp))
+```
+
+```{r}
+absorp_endpt.new = absorp_endpt[ ,seq(1, ncol(absorp_endpt), 5)]
+```
+
+```{r fig.width=10, fig.height=10}
+pairs(absorp_endpt.new[1:20, 1:20])
+```
+
+```{r}
+plot(X1 ~ ., data = absorp_endpt.new)
+```
+```{r}
+require(Hmisc)  # install this library on your computer first!
+plot(describe(absorp_endpt.new))
+
+```
+
+```{r}
+names(absorp_endpt)
+```
+
+
+```{r}
+set.seed(548)
+TestIndex <- sample(nrow(absorp_endpt.new), floor(0.2 * nrow(absorp_endpt.new)))
+Test <- absorp_endpt.new[TestIndex, ]
+Train <- absorp_endpt.new[-TestIndex, ]
+
+```
+
+
+```{r}
+length(absorp_endpt.new$X6)
+length(absorp_endpt.new$X1)
+```
+
+
+SINGLE SELECTION:
+```{r}
+set.seed(548)
+TestIndex <- sample(nrow(absorp_endpt), floor(0.2 * nrow(absorp_endpt)))
+Test0 <- absorp_endpt[TestIndex, ]
+Train0 <- absorp_endpt[-TestIndex, ]
+```
+
+
+```{r}
+# All subsets selection (Although, this is just a rough estimate with only analysis of 21 variables... not realistic)
+require(leaps)
+AllSubsets <- regsubsets(X1 ~ ., nvmax = 3, really.big = T, data = Train0)
+AllSubsets.summary <- summary(AllSubsets)
+AllSubsets.outmat <- AllSubsets.summary$outmat
+AllSubsets.outmat
+```
+
+```{r}
+summary(lm(X1 ~ X42, data = Train0))$sigma
+```
+
+```{r}
+summary(lm(X1 ~ X45, data = Train0))$sigma
+```
+
+
+
+```{r}
+simpleLM <- lm(X1 ~ X42, data = Train0); simpleLM
+```
+```{r}
+simpleLM <- lm(X1 ~ X45, data = Train0); simpleLM
+```
+
+
+BEST SINGLE PREDICTOR IS X42:
+```{r}
+plot(X1 ~ X42, data = Train0, ylab = "Amount of fat content (%)", xlab = "Absorption", main = "Relationship between Absorption of Light and Amount of Fat in Meats")
+abline(simpleLM)
+```
+
+```{r}
+plot(simpleLM)
+```
+
+```{r}
+summary(simpleLM)
+```
+
+NOW LETS DO MULTIPLE REGRESSION! MLR
+
+
+
+NOT NEEDED: ALL SUBSET SELECTION
+```{r}
+# All subsets selection
+# Lots of variables, so we just selected 21.This does not really make sense, so the output is wrong. Just use forward regression, backward regression and lasso output.
+
+require(leaps)
+AllSubsets <- regsubsets(X1 ~ ., nvmax = 20, data = Train)
+AllSubsets.summary <- summary(AllSubsets)
+AllSubsets.outmat <- AllSubsets.summary$outmat
+AllSubsets.outmat
+```
+```{r}
+par(mfrow = c(1, 3))
+par(cex.axis = 1.5)
+par(cex.lab = 1.5)
+plot(1:20, AllSubsets.summary$adjr2, xlab = "subset size", ylab = "adjusted R-squared", 
+    type = "b")
+plot(1:20, AllSubsets.summary$cp, xlab = "subset size", ylab = "Mallows' Cp", 
+    type = "b")
+plot(1:20, AllSubsets.summary$bic, xlab = "subset size", ylab = "BIC", type = "b")
+```
+
+```{r}
+which.max(summary(AllSubsets)$adjr2)
+```
+
+```{r}
+which.min(summary(AllSubsets)$cp)
+```
+
+```{r}
+which.min(summary(AllSubsets)$bic)
+```
+
+```{r}
+par(mfrow = c(1, 1))
+par(cex.axis = 1)
+par(cex.lab = 1.5)
+par(mfrow = c(1, 3))
+par(cex.axis = 1.5)
+par(cex.lab = 1.5)
+plot(1:20, AllSubsets.summary$adjr2, xlab = "subset size", ylab = "adjusted R-squared", 
+    type = "b", log = "y")
+plot(1:20, AllSubsets.summary$cp, xlab = "subset size", ylab = "Mallows' Cp", 
+    type = "b", log = "y")
+plot(1:20, AllSubsets.summary$bic - min(AllSubsets.summary$bic) + 0.1, xlab = "subset size", 
+    ylab = "BIC", type = "b", log = "y")
+```
+
+```{r}
+par(mfrow = c(1, 1))
+par(cex.axis = 1)
+par(cex.lab = 1.5)
+# Summary of model you have decided to evaluate
+
+# Model with 20 variables Don't worry about how this next line is
+# constructed
+lm.as <- lm(formula(paste("X1 ~", paste(names(which(AllSubsets.outmat[20, 
+    ] == "*")), collapse = " + "))), data = Train)
+summary(lm.as)
+
+```
+
+
+FORWARD REGRESSION:
+```{r}
+set.seed(548)
+TestIndex <- sample(nrow(absorp_endpt), floor(0.2 * nrow(absorp_endpt)))
+Test0 <- absorp_endpt[TestIndex, ]
+Train0 <- absorp_endpt[-TestIndex, ]
+```
+
+
+```{r}
+lm0 <- lm(X1 ~ 1, data = Train0)
+lm0
+```
+
+```{r}
+lmall <- lm(X1 ~ ., data = Train0)
+lmall
+```
+
+
+```{r}
+lm.forward <- step(lm0, scope = formula(lmall), direction = "forward", trace = 0)
+```
+
+```{r}
+plot(lm.forward)
+```
+
+```{r}
+summary(lm.forward)
+```
+
+
+
+BACKWARD REGRESSION:
+
+```{r}
+lm.backward <- step(lmall, direction = "backward", trace = 0)
+```
+
+```{r}
+plot(lm.backward)
+```
+
+
+```{r}
+summary(lm.backward)
+```
+
+
+TESTING
+```{r}
+pred.as <- predict(lm.as, newdata = Test0)
+pred.fwd <- predict(lm.forward, newdata = Test0)
+pred.back <- predict(lm.backward, newdata = Test0)
+```
+
+```{r}
+# Plots of actual against predicted values
+Range <- range(c(pred.as, pred.fwd, pred.back))
+```
+
+```{r}
+par(pty = "s")
+plot(pred.as, Test$X1, xlab = "predicted weight", ylab = "actual weight", 
+    main = "All subsets selection", xlim = Range, ylim = Range)
+abline(0, 1)
+
+##NOT ACCURATE SINCE IT ONLY USED 21 variables. JUST DONE AS EXAMPLE.
+```
+
+```{r}
+par(pty = "s")
+plot(pred.fwd, Test0$X1, xlab = "predicted weight", ylab = "actual weight", 
+    main = "Forward selection", xlim = Range, ylim = Range)
+abline(0, 1)
+```
+
+```{r}
+par(pty = "s")
+plot(pred.back, Test0$X1, xlab = "predicted fat content", ylab = "actual fat content", 
+    main = "Backward selection", xlim = Range, ylim = Range)
+abline(0, 1)
+```
+```{r}
+summary(pred.back)
+```
+
+
+```{r}
+# RMSEP for candidate models Let's first write a simple function for
+# calculating RMSEP given actual and predicted values y and yhat have to be
+# the same length!!
+
+RMSEP <- function(y, yhat) {
+    m <- length(y)
+    z <- sqrt((sum((y - yhat)^2))/m)
+    z
+}
+```
+
+```{r}
+RMSEP(Test$X1, pred.as)
+```
+
+```{r}
+RMSEP(Test$X1, pred.fwd)
+```
+
+```{r}
+RMSEP(Test$X1, pred.back)
+```
+
+Therefore model from backwards selection gave out the best prediction!
+Note to andrew: possibly best to use backwards regression. 
+
+
+Now let us try LASSO:
+
+```{r}
+library(glmnet)
+```
+
+
+```{r}
+# Divide the data into training and test sets
+set.seed(98547)
+TestIndex1 <- sample(nrow(absorp_endpt), floor(0.15 * nrow(absorp_endpt)))
+Test1 <- absorp_endpt[TestIndex1, ]
+Train1 <- absorp_endpt[-TestIndex1, ]
+```
+
+
+```{r}
+# Extract body fat
+y <- Train1$X1
+# remove the 23rd column (Weight) and convert to matrix
+X <- as.matrix.data.frame(Train1[, -1])
+
+```
+
+```{r}
+# Run LASSO for a default range of values of lambda
+X1.L1 <- glmnet(X, y)
+# Cross-validate these different models and calculate cross-validation error
+X1.L1.cv <- cv.glmnet(X, y, type.measure = "mse", alpha = 1)
+```
+
+```{r}
+par(mfrow = c(1, 2))
+plot(X1.L1, xvar = "lambda", label = TRUE)
+abline(v = log(c(X1.L1.cv$lambda.min, X1.L1.cv$lambda.1se)), lty = 2:3)
+plot(X1.L1.cv)
+```
+
+```{r}
+par(mfrow = c(1, 1))
+```
+
+```{r}
+coef(X1.L1.cv)
+```
+
+```{r}
+# Make predictions using test data; have to remove Weight and convert to
+# matrix
+newX <- as.matrix.data.frame(Test1[, -1])
+PredictX1 <- predict(X1.L1.cv, newx = newX)
+
+# Extract actual weights from test set
+ActualX1 <- Test1$X1
+```
+
+```{r}
+# Calculate root-mean squared error
+N <- nrow(Test1)  # get number of rows in test set
+RMSEP <- sqrt(sum((ActualX1 - c(PredictX1))^2)/N)
+
+# Plot predictions against actual values, and put RMSE in title of plot
+par(pty = "s")  # produce square plot
+Range <- range(c(PredictX1, ActualX1))  # calculate range of predictions and actual values
+plot(PredictX1, ActualX1, xlab = "predicted Fat Content (LASSO)", ylab = "actual Fat Content", 
+    xlim = Range, ylim = Range, main = paste("RMSEP =", round(RMSEP, 3)))
+abline(0, 1)
+```
+
+
